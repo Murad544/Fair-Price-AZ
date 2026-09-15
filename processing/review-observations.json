@@ -1,0 +1,5 @@
+{
+  "48625543": [{"field": "description", "contains": "Nokia Asha 210 modelidi", "reason": "model_description_conflict", "note": "Structured model is C210; seller describes Asha 210. Verify identity before using this price."}],
+  "48625431": [{"field": "description", "contains": "batareya yenisi ile evez edilib", "reason": "condition_description_conflict", "note": "Structured condition is new, but the seller says the battery was replaced. Review condition; do not silently relabel."}],
+  "48625492": [{"field": "description", "contains": "Telefon yalnız şarjda işlək vəziyyətdə qalır", "reason": "reported_major_damage", "note": "Seller reports the phone only stays working while charging, and describes a swollen battery and broken back. Decide damaged-phone scope before training."}]
+}

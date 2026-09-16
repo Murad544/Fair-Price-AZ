@@ -63,3 +63,21 @@ EDA has examined this sample. This is an exploratory asking-price holdout, not
 an untouched benchmark or transaction-price estimate. Repeatedly running training
 does not make it a fresh test. Use training validation for subsequent changes and
 reserve independently collected data for a stronger final evaluation.
+
+## Bounded hyperparameter tuning
+
+Run `.venv/bin/python -m model.train --tune` to compare twelve unweighted forest
+configurations: minimum leaf size 1/2/4, maximum depth unlimited/16, and feature
+fraction 1.0/0.7. The existing forest is one of these configurations; the median
+and 3× used-weight baseline remain in the comparison. All use 200 trees and the
+same five grouped folds with seed 42. Both conditions remain in training.
+
+Selection still uses pooled used-only validation MAE. Encoders and imputers are
+fitted inside each fold. The holdout is evaluated only after the winner is fixed;
+its scores do not choose settings. `metrics.json` records the candidate settings
+and all selected estimator parameters. Searching more candidates can make the
+winning validation score optimistic; this is still an exploratory benchmark.
+
+The command replaces the normal model artifacts. Back up existing artifacts
+before a tuning run. Repeat `--tune` when retraining if you want to repeat this
+search; omitting it runs the original three-candidate comparison.

@@ -163,7 +163,35 @@ Model outputs are in `model/artifacts/metrics.json`, `pipeline.joblib`, and
 `holdout-predictions.csv`. The reusable verdict function in `model/verdict.py`
 uses 15% for used and 5% for new. API/UI integration remains a later milestone.
 
-## Exploratory baseline results
+## Latest tuning run
+
+Run `.venv/bin/python -m model.train --tune` to repeat the bounded search.
+It compares twelve unweighted forest configurations, the used-weighted baseline,
+and the median reference using identical grouped folds. All train on both conditions.
+
+The latest run uses 1,810 training listings (986 used, 824 new), with 41 used and
+158 new reserved for evaluation. Selected settings: 200 trees, maximum depth 16,
+minimum leaf size 1, and feature fraction 0.7, with no additional used weighting.
+
+| Metric | Untuned forest | Tuned forest |
+| --- | ---: | ---: |
+| Used grouped validation MAE (AZN) | 165.62 | 161.40 |
+| Used holdout MAE (AZN) | 166.20 | 171.92 |
+| New holdout MAE (AZN) | 104.86 | 104.89 |
+| Used holdout RMSE (AZN) | 265.77 | 290.93 |
+| Used holdout bias (AZN) | +24.36 | +7.14 |
+
+The winner is selected from training validation only. Lower validation error did
+not translate into lower used holdout error; this experiment does not establish
+an improvement. Used holdout MAE is 25.06% of mean asking price, above the 20%
+target. Do not keep changing parameters based on this holdout.
+
+The current `model/artifacts/pipeline.joblib` contains the tuned model. The prior
+model, metrics and predictions are preserved locally under
+`model/artifacts/before-tuning-20260915-160248/`. See `docs/model-preparation.md`
+for the tuning workflow. All 30 regression tests pass, including the tuning path.
+
+## Original exploratory baseline results
 
 Snapshot: 1,267 candidates (532 used, 735 new). Training contains 491 used and
 577 new; the frozen holdout contains 41 used and 158 new. The original 41 used

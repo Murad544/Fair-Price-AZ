@@ -10,7 +10,7 @@ import pandas as pd
 from model.evaluate import metrics_by_condition
 from model.pipeline import FEATURES, build_pipeline, features
 from model.prepare import prepare
-from model.train import train
+from model.train import candidate_configs, train
 from model.verdict import verdict
 
 
@@ -49,11 +49,14 @@ class ModelTests(unittest.TestCase):
             source = root / "candidates.jsonl"
             source.write_text("\n".join(json.dumps(r) for r in rows))
             prepare(source, root / "data")
-            report = train(root / "data", root / "artifacts", folds=2)
+            report = train(root / "data", root / "artifacts", folds=2, tune=True)
             best = min(report["cv"], key=lambda k: report["cv"][k]["pooled"]["used"]["mae_azn"])
             self.assertEqual(report["selected_model"], best)
+            self.assertTrue(report["tuning_enabled"])
+            self.assertEqual(len(report["cv"]), len(candidate_configs(tune=True)))
             self.assertEqual(set(report["train_counts"]), {"used", "new"})
             pipeline = joblib.load(root / "artifacts/pipeline.joblib")
+            self.assertEqual(pipeline.named_steps["model"].get_params(), report["selected_parameters"])
             self.assertTrue(np.isfinite(pipeline.predict(features(pd.DataFrame(rows[:2])))).all())
             path = root / "data/test.jsonl"
             testing = [json.loads(l) for l in path.read_text().splitlines()]

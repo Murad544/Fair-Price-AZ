@@ -18,7 +18,7 @@ def features(frame):
     return frame.reindex(columns=FEATURES).replace({None: np.nan})
 
 
-def build_pipeline(median=False):
+def build_pipeline(median=False, **forest_params):
     preprocessor = ColumnTransformer([
         ("numeric", SimpleImputer(strategy="median", add_indicator=True, keep_empty_features=True), NUMERIC),
         ("categorical", Pipeline([
@@ -26,6 +26,7 @@ def build_pipeline(median=False):
             ("encode", OneHotEncoder(handle_unknown="ignore")),
         ]), CATEGORICAL),
     ])
-    estimator = DummyRegressor(strategy="median") if median else RandomForestRegressor(
-        n_estimators=200, min_samples_leaf=2, random_state=42, n_jobs=1)
+    parameters = dict(n_estimators=200, min_samples_leaf=2, random_state=42, n_jobs=1)
+    parameters.update(forest_params)
+    estimator = DummyRegressor(strategy="median") if median else RandomForestRegressor(**parameters)
     return Pipeline([("preprocessor", preprocessor), ("model", estimator)])

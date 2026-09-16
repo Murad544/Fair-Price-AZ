@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+from itertools import product
 from pathlib import Path
 
 import joblib
@@ -30,7 +31,19 @@ def read_partition(path, expected_split):
     return frame
 
 
-def train(data_dir, output_dir, folds=5):
+def candidate_configs(tune=False):
+    candidates = {"median": (True, 1, {}), "random_forest": (False, 1, {}),
+                  "random_forest_used_weight_3": (False, 3, {})}
+    if tune:
+        for leaf, depth, fraction in product((1, 2, 4), (None, 16), (1.0, 0.7)):
+            if (leaf, depth, fraction) == (2, None, 1.0):
+                continue  # The current unweighted baseline already covers this configuration.
+            name = f"forest_leaf_{leaf}_depth_{depth}_features_{fraction}"
+            candidates[name] = (False, 1, dict(min_samples_leaf=leaf, max_depth=depth, max_features=fraction))
+    return candidates
+
+
+def train(data_dir, output_dir, folds=5, tune=False):
     data_dir, output = Path(data_dir), Path(output_dir)
     training = read_partition(data_dir / "train.jsonl", "train")
     testing = read_partition(data_dir / "test.jsonl", "test")
@@ -60,21 +73,23 @@ def train(data_dir, output_dir, folds=5):
         x, training.condition, groups=training.duplicate_group))
     if any(set(training.iloc[v].condition) != {"used", "new"} for _, v in splits):
         raise ValueError("Each validation fold must contain both conditions")
-    candidates = {"median": (True, 1), "random_forest": (False, 1), "random_forest_used_weight_3": (False, 3)}
+    candidates = candidate_configs(tune)
     cv = {}
-    for name, (median, used_weight) in candidates.items():
+    for name, (median, used_weight, parameters) in candidates.items():
         predictions = np.empty(len(training))
         fold_metrics = []
         for fit, validation in splits:
-            pipeline = build_pipeline(median=median)
+            pipeline = build_pipeline(median=median, **parameters)
             weights = np.where(training.iloc[fit].condition.eq("used"), used_weight, 1)
             pipeline.fit(x.iloc[fit], y.iloc[fit], model__sample_weight=weights)
             predictions[validation] = pipeline.predict(x.iloc[validation])
             fold_metrics.append(metrics_by_condition(y.iloc[validation], predictions[validation], training.iloc[validation].condition))
         cv[name] = {"pooled": metrics_by_condition(y, predictions, training.condition), "folds": fold_metrics}
+        if tune:
+            print(f"{name}: used CV MAE {cv[name]['pooled']['used']['mae_azn']:.2f} AZN", flush=True)
     chosen = min(cv, key=lambda name: cv[name]["pooled"]["used"]["mae_azn"])
-    median, used_weight = candidates[chosen]
-    pipeline = build_pipeline(median=median)
+    median, used_weight, parameters = candidates[chosen]
+    pipeline = build_pipeline(median=median, **parameters)
     pipeline.fit(x, y, model__sample_weight=np.where(training.condition.eq("used"), used_weight, 1))
     # Selection is complete before holdout predictions are computed.
     predictions = pipeline.predict(features(testing))
@@ -86,6 +101,8 @@ def train(data_dir, output_dir, folds=5):
     report = {
         "selected_model": chosen, "selection_metric": "pooled grouped CV used-only MAE",
         "used_sample_weight": used_weight, "features": FEATURES,
+        "tuning_enabled": tune, "selected_parameters": pipeline.named_steps["model"].get_params(),
+        "candidate_parameters": {name: {"median": m, "used_weight": w, "forest_params": p} for name, (m,w,p) in candidates.items()},
         "sklearn_version": sklearn.__version__,
         "split_manifest_sha256": hashlib.sha256((data_dir / "split-manifest.json").read_bytes()).hexdigest(),
         "train_counts": {k: int(v) for k,v in training.condition.value_counts().items()},
@@ -108,8 +125,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", type=Path, default=Path("data/model"))
     parser.add_argument("--output-dir", type=Path, default=Path("model/artifacts"))
+    parser.add_argument("--tune", action="store_true", help="Compare a bounded forest grid using training CV only")
     args = parser.parse_args()
-    result = train(args.data_dir, args.output_dir)
+    result = train(args.data_dir, args.output_dir, tune=args.tune)
     print(json.dumps({k: result[k] for k in ("selected_model", "train_counts", "holdout")}, indent=2))
 
 

@@ -10,7 +10,7 @@ This monorepo keeps the data pipeline, model, API, and frontend together.
 ```text
 fair-price-az/
 ├── frontend/              # Reserved for React; currently empty
-├── api/                   # Reserved for FastAPI; currently empty
+├── api/                   # FastAPI prediction and live-listing endpoints
 ├── scraper/               # Collection and Tap.az parsing
 ├── processing/            # Cleaning and condition checks
 ├── analysis/              # Reproducible EDA scripts
@@ -22,14 +22,27 @@ fair-price-az/
 ├── reports/               # Generated local EDA reports
 ├── requirements-eda.txt
 ├── requirements-model.txt
+├── requirements-api.txt
 ├── .gitignore
 └── README.md
 ```
 
 Run Python commands from the repository root. Generated datasets, reports, and
-model artifacts stay local and are excluded from Git. The `frontend/` and `api/`
-directories are intentionally empty; Git will track them once files are added.
-After a fresh clone, create these reserved directories with `mkdir -p frontend api`.
+model artifacts stay local and are excluded from Git. The `frontend/` directory is intentionally empty; Git will track it once files
+are added. After a fresh clone, create it with `mkdir -p frontend`.
+
+## Run the API
+
+```sh
+.venv/bin/python -m pip install -r requirements-api.txt
+.venv/bin/python -m uvicorn api.main:app --reload
+```
+
+Open http://127.0.0.1:8000/docs to try `GET /health`, `POST /predict`, and
+`POST /predict-from-url`. The API loads the existing model once at startup and
+uses the same preprocessing and verdict rules. It does not retrain the model.
+See [API usage](docs/api.md) for request examples, configuration and error codes.
+The frontend remains empty.
 
 ## Collect a small batch
 
@@ -161,7 +174,7 @@ The holdout reports used/new MAE, RMSE, R² and signed bias separately.
 Open `notebooks/01_eda.ipynb` for reproducible EDA with both conditions.
 Model outputs are in `model/artifacts/metrics.json`, `pipeline.joblib`, and
 `holdout-predictions.csv`. The reusable verdict function in `model/verdict.py`
-uses 15% for used and 5% for new. API/UI integration remains a later milestone.
+uses 15% for used and 5% for new. The API exposes this logic; frontend integration remains a later milestone.
 
 ## Latest tuning run
 

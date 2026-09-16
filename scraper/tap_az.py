@@ -2,7 +2,7 @@
 
 import json
 import time
-from urllib.request import Request, build_opener, HTTPRedirectHandler
+from urllib.request import Request, build_opener, HTTPRedirectHandler, HTTPSHandler
 from urllib.robotparser import RobotFileParser
 
 BASE = "https://tap.az"
@@ -25,13 +25,13 @@ class NoRedirects(HTTPRedirectHandler):
 
 
 class Client:
-    def __init__(self, user_agent="FairPriceAZ/0.2 (research prototype)", delay=3):
+    def __init__(self, user_agent="FairPriceAZ/0.2 (research prototype)", delay=3, ssl_context=None):
         if delay < 3:
             raise ValueError("Request delay must be at least 3 seconds")
         self.user_agent = user_agent
         self.delay = delay
         self.last_request = None
-        self.opener = build_opener(NoRedirects())
+        self.opener = build_opener(NoRedirects(), HTTPSHandler(context=ssl_context))
         self.robots = None
 
     def request(self, path, payload=None):

@@ -32,17 +32,26 @@ class ListingFetcher:
         if not self.lock.acquire(blocking=False):
             raise LiveError(429, "Another listing lookup is running; try again shortly")
         try:
+            stage = "robots.txt"
             try:
                 self.client.check_robots()
+                stage = "listing"
                 raw = parse_detail(self.client.request(path), listing_id)
             except (CategoryChanged, ListingUnavailable) as error:
                 raise LiveError(404, "Phone listing is unavailable") from error
             except HTTPError as error:
                 code = error.code
+                logger.warning("Tap.az HTTP %s while fetching %s", code, stage)
                 error.close()
-                if code in (404, 410):
+                if code in (404, 410) and stage == "listing":
                     raise LiveError(404, "Phone listing is unavailable") from error
-                raise LiveError(503, "Tap.az is unavailable or limiting requests; try later") from error
+                if code == 403:
+                    message = "Tap.az denied the server's request (HTTP 403). Enter phone details manually."
+                elif code == 429:
+                    message = "Tap.az is limiting requests (HTTP 429). Wait before trying again or enter phone details manually."
+                else:
+                    message = f"Tap.az returned HTTP {code} while fetching {stage}. Try later or enter phone details manually."
+                raise LiveError(503, message) from error
             except TimeoutError as error:
                 raise LiveError(504, "Tap.az lookup timed out") from error
             except URLError as error:

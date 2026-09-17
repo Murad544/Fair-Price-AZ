@@ -98,6 +98,14 @@ The fetcher does not automatically retry blocks or rate limits. Manual predictio
 remain available while a live lookup is running. Live-fetch spacing is per process,
 so use one worker until a shared limiter is introduced for deployment.
 
+For upstream HTTP failures, the server logs the original status and whether the
+failure occurred while fetching `robots.txt` or the listing. A 503 response now
+distinguishes upstream 403 (request denied), 429 (rate limiting), and other HTTP
+errors. A 403 alone does not establish whether the cause is the hosting IP,
+site policy, or another access rule. A missing robots.txt is not reported as a
+missing phone. Inspect these logs on the failing host before changing hosting
+or network settings; do not retry a denied request repeatedly.
+
 ## Environment variables
 
 - `FAIR_PRICE_MODEL_PATH`: trusted local artifact path; defaults to the repository's

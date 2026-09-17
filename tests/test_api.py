@@ -155,3 +155,22 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.status_code, 502)
         self.assertEqual(result.json()['detail'], "Could not verify Tap.az's TLS certificate")
         self.assertIn('certificate verify failed', logs.output[0])
+
+    def test_upstream_http_status_and_stage_are_preserved(self):
+        for stage in ('robots.txt', 'listing'):
+            for code in (403, 429, 500, 404):
+                with self.subTest(stage=stage, code=code):
+                    upstream = Mock()
+                    method = upstream.check_robots if stage == 'robots.txt' else upstream.request
+                    method.side_effect = HTTPError(URL, code, 'upstream failure', {}, None)
+                    self.app.state.fetcher = ListingFetcher(upstream)
+                    with self.assertLogs('api.live', level='WARNING') as logs:
+                        response = self.client.post('/predict-from-url', json={'url': URL})
+                    if code == 404 and stage == 'listing':
+                        self.assertEqual(response.status_code, 404)
+                    else:
+                        self.assertEqual(response.status_code, 503)
+                        self.assertIn(f'HTTP {code}', response.json()['detail'])
+                    self.assertIn(f'Tap.az HTTP {code} while fetching {stage}', logs.output[0])
+                    if stage == 'robots.txt':
+                        upstream.request.assert_not_called()

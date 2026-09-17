@@ -7,3 +7,13 @@ data/processed/
 reports/
 data/model/
 model/artifacts/
+
+# Frontend build output, local config, and browser test artifacts
+.pnpm-store/
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local

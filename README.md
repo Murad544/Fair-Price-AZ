@@ -9,7 +9,7 @@ This monorepo keeps the data pipeline, model, API, and frontend together.
 
 ```text
 fair-price-az/
-├── frontend/              # Reserved for React; currently empty
+├── frontend/              # React + TypeScript phone price checker
 ├── api/                   # FastAPI prediction and live-listing endpoints
 ├── scraper/               # Collection and Tap.az parsing
 ├── processing/            # Cleaning and condition checks
@@ -28,8 +28,8 @@ fair-price-az/
 ```
 
 Run Python commands from the repository root. Generated datasets, reports, and
-model artifacts stay local and are excluded from Git. The `frontend/` directory is intentionally empty; Git will track it once files
-are added. After a fresh clone, create it with `mkdir -p frontend`.
+model artifacts stay local and are excluded from Git. The frontend lives in `frontend/`; its dependencies and generated build files
+are also excluded from Git.
 
 ## Run the API
 
@@ -42,7 +42,23 @@ Open http://127.0.0.1:8000/docs to try `GET /health`, `POST /predict`, and
 `POST /predict-from-url`. The API loads the existing model once at startup and
 uses the same preprocessing and verdict rules. It does not retrain the model.
 See [API usage](docs/api.md) for request examples, configuration and error codes.
-The frontend remains empty.
+
+## Run the frontend
+
+With the API running, open another terminal:
+
+```sh
+cd frontend
+pnpm install
+pnpm dev
+```
+
+Open http://127.0.0.1:5173. Users can paste a Tap.az phone link or enter details
+manually. Results show the estimate and, when an asking price is supplied, a
+condition-specific verdict. The local frontend proxies requests to the API on
+port 8000. See [frontend setup](frontend/README.md) for deployment and browser tests.
+
+Validation: `pnpm build` and `pnpm test` from `frontend/`.
 
 ## Collect a small batch
 
@@ -174,7 +190,7 @@ The holdout reports used/new MAE, RMSE, R² and signed bias separately.
 Open `notebooks/01_eda.ipynb` for reproducible EDA with both conditions.
 Model outputs are in `model/artifacts/metrics.json`, `pipeline.joblib`, and
 `holdout-predictions.csv`. The reusable verdict function in `model/verdict.py`
-uses 15% for used and 5% for new. The API exposes this logic; frontend integration remains a later milestone.
+uses 15% for used and 5% for new. The API and frontend both expose this comparison.
 
 ## Latest tuning run
 
